@@ -4,11 +4,12 @@ from setuptools import setup
 if __name__ == '__main__':
   setup(
     name='Flask-Upstatic',
+    version='0.0.1',
     description="Opinionated library for working with CDNs in Flask.",
     long_description=open('README.rst').read(),
-    version='0.0.1',
     author='Mark Steve Samson',
     author_email='marksteve@insynchq.com',
+    url='https://github.com/insynchq/flask-upstatic',
     license='MIT',
     py_modules=['flask_upstatic'],
     install_requires=[
