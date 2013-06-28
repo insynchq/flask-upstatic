@@ -172,8 +172,9 @@ class Upstatic(object):
         try:
           output = os.path.join(tmpdir, compiled_filename)
           if is_gzip:
-            with gzip.open(output, 'wb') as f:
-              f.write(compiled_data)
+            f = gzip.open(output, 'wb')
+            f.write(compiled_data)
+            f.close()
           else:
             with open(output, 'wb') as f:
               f.write(compiled_data)
