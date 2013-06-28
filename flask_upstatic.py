@@ -302,7 +302,7 @@ class Upstatic(object):
       for compiled_filename in compiled:
         headers['Content-Type'] = (
           mimetypes.guess_type(compiled_filename)[0] or
-          'application/octet-stream',
+          'application/octet-stream'
         )
         files_uploaded += self._upload(
           tmpdir,
@@ -320,7 +320,7 @@ class Upstatic(object):
       for compiled_filename_gz in compiled_gz:
         headers['Content-Type'] = (
           mimetypes.guess_type(compiled_filename_gz)[0] or
-          'application/octet-stream',
+          'application/octet-stream'
         )
         files_gz_uploaded += self._upload(
           tmpdir,
