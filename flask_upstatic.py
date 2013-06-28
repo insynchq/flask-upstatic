@@ -208,6 +208,7 @@ class Upstatic(object):
       key = bucket.get_key(key_name)
       if key:
         logger.info("Already exists: %r", filename)
+        return False
       else:
         key = bucket.new_key(key_name)
         key.set_contents_from_filename(
@@ -215,16 +216,12 @@ class Upstatic(object):
           headers=headers,
         )
         key.set_acl('public-read')
+        logger.info("Uploaded: %r", filename)
+        return True
 
     except Exception:
       logger.error("Failed to upload: %r", filename)
       raise
-
-    else:
-      logger.info("Uploaded: %r", filename)
-      return True
-
-    return False
 
   def init_app(self, app):
     self.url_builder = S3UrlBuilder(
