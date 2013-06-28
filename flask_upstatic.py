@@ -215,7 +215,6 @@ class Upstatic(object):
           headers=headers,
         )
         key.set_acl('public-read')
-        return True
 
     except Exception:
       logger.error("Failed to upload: %r", filename)
@@ -223,6 +222,7 @@ class Upstatic(object):
 
     else:
       logger.info("Uploaded: %r", filename)
+      return True
 
     return False
 
