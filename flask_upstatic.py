@@ -1,50 +1,24 @@
-from functools import partial
-from hashlib import md5
-from tempfile import mkdtemp
 import base64
 import gzip
 import logging
 import mimetypes
 import os
-import pkg_resources
 import re
+from functools import partial
+from hashlib import md5
+from tempfile import mkdtemp
 
-from boto.s3.connection import S3Connection, OrdinaryCallingFormat
-from flask import current_app, request, url_for as _url_for
+import pkg_resources
+
+from boto.s3.connection import OrdinaryCallingFormat, S3Connection
+from flask import url_for as _url_for
+from flask import current_app, request
 from werkzeug import routing
-
 
 logger = logging.getLogger(__name__)
 
 
 CSS_URL_PATTERN = re.compile('url\((?:\'|")?([^\'"\)]+)(?:\'|")?\)')
-
-
-class S3UrlBuilder(object):
-
-  def __init__(self, access_key_id, secret_access_key, bucket_name,
-               key_prefix, cdn_host):
-    self._access_key_id = access_key_id
-    self._secret_access_key = secret_access_key
-    self._bucket_name = bucket_name
-    self._key_prefix = key_prefix or ''
-    self._cdn_host = cdn_host
-    self._calling_format = OrdinaryCallingFormat()
-    self._memo = {}
-    self._conn = S3Connection(self._access_key_id, self._secret_access_key)
-
-  def build(self, path, protocol='http'):
-    path = self._key_prefix + path
-    if self._cdn_host:
-      return "%s://%s/%s" % (protocol, self._cdn_host, path)
-    else:
-      return self._calling_format.build_url_base(
-        self._conn,
-        protocol,
-        S3Connection.DefaultHost,
-        self._bucket_name,
-        path,
-      )
 
 
 class Upstatic(object):
@@ -65,6 +39,12 @@ class Upstatic(object):
   def use_local(self):
     return (self.app.config.get('UPSTATIC_DEBUG_USE_LOCAL', True) and
             self.app.config.get('DEBUG'))
+
+  def _walk(self, path):
+    for dirpath, _dirnames, filenames in os.walk(path):
+      for filename in filenames:
+        if filename.lower() not in ('.ds_store', 'thumbs.db'):
+          yield os.path.join(dirpath, filename)
 
   def _get_md5(self, data, salt=''):
     return base64.urlsafe_b64encode(md5(salt + data).digest())
@@ -102,7 +82,7 @@ class Upstatic(object):
         is_gzip,
         protocol,
       )
-      return "url('%s')" % self.url_builder.build(_compiled_path, protocol)
+      return "url('%s')" % self._build_url(_compiled_path, protocol)
 
   def _compile(self, path, is_gzip, protocol):
     try:
@@ -121,12 +101,6 @@ class Upstatic(object):
       return CSS_URL_PATTERN.sub(css_replace_url, contents)
     else:
       return contents
-
-  def _walk(self, path):
-    for dirpath, _dirnames, filenames in os.walk(path):
-      for filename in filenames:
-        if filename.lower() not in ('.ds_store', 'thumbs.db'):
-          yield os.path.join(dirpath, filename)
 
   def _compile_path(self, path, protocol='http'):
     tmpdir = mkdtemp()
@@ -223,14 +197,32 @@ class Upstatic(object):
       logger.error("Failed to upload: %r", filename)
       raise
 
+  def _build_url(self, path, protocol='http'):
+    url = self._memo.get(path)
+    if not url:
+      path = self._key_prefix + path
+      if self._cdn_host:
+        url = "%s://%s/%s" % (protocol, self._cdn_host, path)
+      else:
+        url = self._calling_format.build_url_base(
+          self._conn,
+          protocol,
+          S3Connection.DefaultHost,
+          self._bucket_name,
+          path,
+        )
+      self._memo[path] = url
+    return url
+
   def init_app(self, app):
-    self.url_builder = S3UrlBuilder(
-      access_key_id=app.config['UPSTATIC_S3_ACCESS_KEY_ID'],
-      secret_access_key=app.config['UPSTATIC_S3_SECRET_ACCESS_KEY'],
-      bucket_name=app.config['UPSTATIC_S3_BUCKET_NAME'],
-      key_prefix=app.config.get('UPSTATIC_S3_KEY_PREFIX', ''),
-      cdn_host=app.config.get('UPSTATIC_S3_CDN_HOST'),
-    )
+    self._access_key_id = app.config['UPSTATIC_S3_ACCESS_KEY_ID']
+    self._secret_access_key = app.config['UPSTATIC_S3_SECRET_ACCESS_KEY']
+    self._bucket_name = app.config['UPSTATIC_S3_BUCKET_NAME']
+    self._key_prefix = app.config.get('UPSTATIC_S3_KEY_PREFIX', '')
+    self._cdn_host = app.config.get('UPSTATIC_S3_CDN_HOST')
+    self._calling_format = OrdinaryCallingFormat()
+    self._memo = {}
+    self._conn = S3Connection(self._access_key_id, self._secret_access_key)
 
   def url_for(self, *args, **kwargs):
     root = self._roots.get(kwargs.pop('root', None))
@@ -259,7 +251,7 @@ class Upstatic(object):
       protocol,
     )
 
-    return self.url_builder.build(compiled_path, protocol)
+    return self._build_url(compiled_path, protocol)
 
   def get_data_path(self, base_dir, package_name=None):
     if not package_name:
@@ -332,4 +324,3 @@ class Upstatic(object):
         files_uploaded,
         files_gz_uploaded,
       )
-
