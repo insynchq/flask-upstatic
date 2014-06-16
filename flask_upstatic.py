@@ -66,25 +66,37 @@ class Upstatic(object):
 
     return compiled_path
 
-  def _css_replace_url(self, is_gzip, match):
+  def _css_replace_url(self, css_path, is_gzip, match):
     path = match.group(1).rsplit('#', 1)[0].rsplit('?', 1)[0]
     if path.startswith('http'):  # absolute url
       return path
     elif path.startswith('/'):  # from root
       return path
-    else:  # relative to the CSS
+    elif 'data:' in path:  # data url
+      return path
+    else:
+      # Resolve css asset path
+      path = os.path.relpath(
+        os.path.normpath(
+          os.path.join(os.path.dirname(css_path), path),
+        ),
+        self._app.static_folder,
+      )
+
+      # Images don't have gzip versions
       if self._is_image(path):
         is_gzip = False
-      compiled_path = self._compiled_paths.get(
+
+      compiled_path = self._compiled_paths[
         self._key(
           path,
           is_gzip,
-        ),
-      )
+        )
+      ]
       return "url('%s')" % self._build_url(compiled_path)
 
-  def _fix_css(self, compiled_data, is_gzip):
-    sub = partial(self._css_replace_url, is_gzip)
+  def _fix_css(self, css_path, compiled_data, is_gzip):
+    sub = partial(self._css_replace_url, css_path, is_gzip)
     return CSS_URL_PATTERN.sub(sub, compiled_data)
 
   def compile(self):
@@ -126,7 +138,7 @@ class Upstatic(object):
 
         # Collect css files
         if self._is_css(path):
-          css.add(compiled_path)
+          css.add((path, compiled_path))
 
         # Collect to be gzipped files
         if is_gzip and not self._is_image(path):
@@ -148,13 +160,13 @@ class Upstatic(object):
         self._logger.debug('Compiled: %r -> %r', path, compiled_path)
 
     # Fix CSS paths
-    for compiled_path in css:
+    for path, compiled_path in css:
       output = os.path.join(self._tmpdir, compiled_path)
       with open(output, 'rb') as f:
         data = f.read()
       is_gzip = '/gz/' in compiled_path
       with open(output, 'wb') as f:
-        f.write(self._fix_css(data, is_gzip))
+        f.write(self._fix_css(path, data, is_gzip))
 
     # Gzip files
     for compiled_path in gzipped:
