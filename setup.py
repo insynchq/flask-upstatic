@@ -4,7 +4,7 @@ from setuptools import setup
 if __name__ == '__main__':
   setup(
     name='Flask-Upstatic',
-    version='0.1.1',
+    version='0.1.2',
     description="Opinionated library for working with CDNs in Flask.",
     long_description=open('README.rst').read(),
     author='Mark Steve Samson',
