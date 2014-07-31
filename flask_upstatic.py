@@ -194,7 +194,7 @@ class Upstatic(object):
       key_name = key_prefix + path
       key = bucket.get_key(key_name)
       if key and not overwrite:
-        self._logger.info("Already exists: %r", path)
+        self._logger.debug("Already exists: %r", path)
         return False
       else:
         key = bucket.new_key(key_name)
@@ -203,7 +203,7 @@ class Upstatic(object):
           headers=headers,
         )
         key.set_acl('public-read')
-        self._logger.debug("Uploaded: %r", path)
+        self._logger.info("Uploaded: %r", path)
         return True
 
     except Exception:
