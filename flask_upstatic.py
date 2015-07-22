@@ -13,7 +13,6 @@ import pkg_resources
 from boto.s3.connection import OrdinaryCallingFormat, S3Connection
 from flask import url_for as _url_for
 from flask import current_app, request
-from werkzeug import routing
 
 logger = logging.getLogger(__name__)
 
@@ -197,12 +196,13 @@ class Upstatic(object):
       logger.error("Failed to upload: %r", filename)
       raise
 
-  def _build_url(self, path, protocol='http'):
+  def _build_url(self, path, protocol='http', cdn_host=None):
     url = self._memo.get(path)
     if not url:
       path = self._key_prefix + path
-      if self._cdn_host:
-        url = "%s://%s/%s" % (protocol, self._cdn_host, path)
+      cdn_host = cdn_host or self._cdn_host
+      if cdn_host:
+        url = "%s://%s/%s" % (protocol, cdn_host, path)
       else:
         url = self._calling_format.build_url_base(
           self._conn,
@@ -226,6 +226,7 @@ class Upstatic(object):
 
   def url_for(self, *args, **kwargs):
     root = self._roots.get(kwargs.pop('root', None))
+    cdn_host = kwargs.pop('cdn_host', None)
 
     if not (args[0].endswith('static') and root):
       return _url_for(*args, **kwargs)
@@ -251,7 +252,7 @@ class Upstatic(object):
       protocol,
     )
 
-    return self._build_url(compiled_path, protocol)
+    return self._build_url(compiled_path, protocol, cdn_host)
 
   def get_data_path(self, base_dir, package_name=None):
     if not package_name:
