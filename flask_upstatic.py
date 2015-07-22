@@ -210,14 +210,16 @@ class Upstatic(object):
       self._logger.error("Failed to upload: %r", path)
       raise
 
-  def _build_url(self, path):
+  def _build_url(self, path, **kwargs):
     path = self._key_prefix + path
-    if self._cdn_host:
-      return "%s://%s/%s" % (self._scheme, self._cdn_host, path)
+    scheme = kwargs.get('scheme', self._scheme)
+    cdn_host = kwargs.get('cdn_host', self._cdn_host)
+    if cdn_host:
+      return "%s://%s/%s" % (scheme, cdn_host, path)
     else:
       return self._calling_format.build_url_base(
         self._conn,
-        self._scheme,
+        scheme,
         S3Connection.DefaultHost,
         self._bucket_name,
         path,
@@ -249,7 +251,7 @@ class Upstatic(object):
       return _url_for(*args, **kwargs)
 
     # Normalize path
-    path = kwargs['filename'].strip('/')
+    path = kwargs.pop('filename').strip('/')
 
     # Get headers info
     is_gzip = (
@@ -260,7 +262,7 @@ class Upstatic(object):
     # Get compiled path
     compiled_path = self._compiled_paths[self._key(path, is_gzip)]
 
-    return self._build_url(compiled_path)
+    return self._build_url(compiled_path, **kwargs)
 
   def upload(self, overwrite=False):
     self._logger.info("Uploading...")
