@@ -197,21 +197,18 @@ class Upstatic(object):
       raise
 
   def _build_url(self, path, protocol='http', cdn_host=None):
-    url = self._memo.get(path)
-    if not url:
-      path = self._key_prefix + path
-      cdn_host = cdn_host or self._cdn_host
-      if cdn_host:
-        url = "%s://%s/%s" % (protocol, cdn_host, path)
-      else:
-        url = self._calling_format.build_url_base(
-          self._conn,
-          protocol,
-          S3Connection.DefaultHost,
-          self._bucket_name,
-          path,
-        )
-      self._memo[path] = url
+    path = self._key_prefix + path
+    cdn_host = cdn_host or self._cdn_host
+    if cdn_host:
+      url = "%s://%s/%s" % (protocol, cdn_host, path)
+    else:
+      url = self._calling_format.build_url_base(
+        self._conn,
+        protocol,
+        S3Connection.DefaultHost,
+        self._bucket_name,
+        path,
+      )
     return url
 
   def init_app(self, app):
@@ -221,7 +218,6 @@ class Upstatic(object):
     self._key_prefix = app.config.get('UPSTATIC_S3_KEY_PREFIX', '')
     self._cdn_host = app.config.get('UPSTATIC_S3_CDN_HOST')
     self._calling_format = OrdinaryCallingFormat()
-    self._memo = {}
     self._conn = S3Connection(self._access_key_id, self._secret_access_key)
 
   def url_for(self, *args, **kwargs):
